@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blood Moon: The Last Knight</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="game-outer">
+<div id="game-wrap">
+
+  <canvas id="game" width="960" height="576"></canvas>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="hp-box">
+        <div class="label">SIR ALARIC</div>
+        <div class="bar-bg"><div id="hp-fill" class="bar-fill hp"></div></div>
+        <div id="hp-text" class="bar-text">100 / 100</div>
+      </div>
+      <div class="timer-box">
+        <div class="label">BLOOD MOON IN</div>
+        <div id="timer" class="timer">15:00</div>
+      </div>
+      <div class="level-box">
+        <div class="label" id="level-name">WHISPERING FOREST</div>
+        <div id="enemy-count" class="sub">enemies: 0</div>
+      </div>
+    </div>
+
+    <div class="hud-bottom">
+      <div class="item-box">
+        <span class="icon">⚔</span><span id="weapon-name">Rusty Sword</span>
+      </div>
+      <div class="item-box">
+        <span class="icon">🏹</span><span id="bow-status">--</span>
+      </div>
+      <div class="item-box">
+        <span class="icon">💣</span><span id="bomb-count">0</span>
+      </div>
+      <div class="item-box">
+        <span class="icon">💰</span><span id="gold-count">0</span>
+      </div>
+      <div id="upgrade-list" class="item-box upgrades"></div>
+    </div>
+
+    <button id="btn-pause-touch" class="pause-touch-btn">II</button>
+
+    <div id="banner" class="banner hidden"></div>
+    <div id="floaters"></div>
+
+    <!-- TOUCH CONTROLS (shown automatically on touch devices) -->
+    <div id="touch-controls">
+      <div id="joystick-zone">
+        <div id="joystick-base">
+          <div id="joystick-knob"></div>
+        </div>
+      </div>
+      <div id="touch-buttons">
+        <button id="tb-interact" class="tbtn small" data-action="interact">E</button>
+        <button id="tb-dash" class="tbtn small" data-action="dash">DASH</button>
+        <button id="tb-bomb" class="tbtn med" data-action="bomb">💣</button>
+        <button id="tb-shoot" class="tbtn med" data-action="shoot">🏹</button>
+        <button id="tb-swing" class="tbtn big" data-action="swing">⚔</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- START SCREEN -->
+  <div id="screen-start" class="screen">
+    <div class="screen-inner">
+      <h1 class="title">BLOOD MOON</h1>
+      <h2 class="subtitle">The Last Knight</h2>
+      <p class="story">
+        The Kingdom of Elarion has fallen.<br>
+        Queen Elowen has vanished into ash and rumor.<br>
+        Princess Seraphine is chained inside the <b>Black Fortress</b>,<br>
+        held for sacrifice when the <span class="red">Blood Moon</span> rises.<br><br>
+        The King's army is dead. The gates are broken.<br>
+        Only one knight still draws breath.<br><br>
+        <b>You are Sir Alaric.</b><br>
+        You have <span class="red">15 minutes</span> before the moon turns red.<br>
+        Fight. Survive. Grow stronger. Save her.
+      </p>
+      <button id="btn-start" class="btn">DRAW YOUR SWORD</button>
+      <div class="controls-hint">
+        <b>MOVE</b> WASD / Arrows / Touch joystick &nbsp;·&nbsp; <b>SWING</b> Space / Click / ⚔ &nbsp;·&nbsp;
+        <b>SHOOT</b> F / 🏹 &nbsp;·&nbsp; <b>BOMB</b> B / 💣 &nbsp;·&nbsp; <b>DASH</b> Shift / DASH &nbsp;·&nbsp; <b>PAUSE</b> P / II
+      </div>
+    </div>
+  </div>
+
+  <!-- LEVEL INTRO SCREEN -->
+  <div id="screen-level" class="screen hidden">
+    <div class="screen-inner">
+      <div class="eyebrow" id="lvl-number">LEVEL 1</div>
+      <h1 class="title small" id="lvl-title">WHISPERING FOREST</h1>
+      <p class="story" id="lvl-desc"></p>
+      <button class="btn" id="btn-continue">ENTER</button>
+    </div>
+  </div>
+
+  <!-- PAUSE SCREEN -->
+  <div id="screen-pause" class="screen hidden">
+    <div class="screen-inner">
+      <h1 class="title small">PAUSED</h1>
+      <button class="btn" id="btn-resume">RESUME</button>
+    </div>
+  </div>
+
+  <!-- GAME OVER SCREEN -->
+  <div id="screen-over" class="screen hidden">
+    <div class="screen-inner">
+      <h1 class="title red-title" id="over-title">YOU HAVE FALLEN</h1>
+      <p class="story" id="over-text"></p>
+      <div class="stats" id="over-stats"></div>
+      <button class="btn" id="btn-restart">TRY AGAIN</button>
+    </div>
+  </div>
+
+  <!-- WIN SCREEN -->
+  <div id="screen-win" class="screen hidden">
+    <div class="screen-inner">
+      <h1 class="title gold-title">THE KINGDOM IS SAVED</h1>
+      <p class="story" id="win-text"></p>
+      <div class="stats" id="win-stats"></div>
+      <button class="btn" id="btn-restart2">PLAY AGAIN</button>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
