@@ -10,7 +10,7 @@ The Kingdom of Elarion has fallen. Queen Elowen has vanished. Princess Seraphine
 chained inside the Black Fortress, held for sacrifice when the Blood Moon rises.
 The King's army is dead. Only one knight still draws breath.
 
-You are **Sir Alaric**. You have **15 minutes** before the moon turns red. Fight
+You are **Sir Alaric**. You have **20 minutes** before the moon turns red. Fight
 your way through 5 themed levels, grow stronger, and reach the Dragon King's
 throne room before time runs out.
 
@@ -36,7 +36,7 @@ button (**II**) top-center. The whole game scales to fit the screen.
 
 Clear every enemy in a level to summon its boss. Defeat the boss to open a
 portal to the next level. Reach and defeat the **Dragon King** in the Throne
-Room before the 15-minute timer hits zero to rescue the Princess and win.
+Room before the 20-minute timer hits zero to rescue the Princess and win.
 If you run out of time, or die anywhere along the way, the run ends — start
 over from Level 1. Enemy spawns, elites, ambushes, and item drops are
 randomized every run, so no two attempts play out the same.

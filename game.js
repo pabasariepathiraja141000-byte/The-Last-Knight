@@ -85,7 +85,7 @@ const LEVELS = [
     ground: '#140912', ground2: '#1c0d18', fog: '#0a0409', decor: 'throne', pool: ['knight','necromancer','demon'], count: [8,10], boss: 'dragon_king' },
 ];
 
-const TOTAL_TIME = 15 * 60; // 15 minutes, matches the Blood Moon story
+const TOTAL_TIME = 20 * 60; // 20 minutes, matches the Blood Moon story
 const ARENA_R = 8.6;
 
 // ---------------------------------------------------------------------------
