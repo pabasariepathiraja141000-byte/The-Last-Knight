@@ -9,6 +9,42 @@ const W = canvas.width, H = canvas.height;
 
 const TILE_W = 64, TILE_H = 34;
 
+// --- Pre-built gradients (created ONCE, reused every frame) ------------
+// iOS Safari is very sensitive to shadowBlur / gradient objects created
+// on every animation frame — it causes heavy memory churn and can crash
+// the tab after a minute or two of play. Building these once up front
+// and reusing them is the fix.
+const VIGNETTE_GRADIENT = (() => {
+  const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.25, W / 2, H / 2, H * 0.75);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, 'rgba(0,0,0,0.55)');
+  return g;
+})();
+const MOON_X = W - 110, MOON_Y = 80, MOON_R = 34;
+const MOON_GLOW_NORMAL = (() => {
+  const g = ctx.createRadialGradient(MOON_X, MOON_Y, 0, MOON_X, MOON_Y, MOON_R * 2.1);
+  g.addColorStop(0, 'rgba(216,208,176,0.55)');
+  g.addColorStop(1, 'rgba(216,208,176,0)');
+  return g;
+})();
+const MOON_GLOW_BLOOD = (() => {
+  const g = ctx.createRadialGradient(MOON_X, MOON_Y, 0, MOON_X, MOON_Y, MOON_R * 2.1);
+  g.addColorStop(0, 'rgba(255,91,91,0.6)');
+  g.addColorStop(1, 'rgba(255,91,91,0)');
+  return g;
+})();
+const pickupGlowCache = {};
+function getPickupGlow(kind) {
+  if (!pickupGlowCache[kind]) {
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 16);
+    g.addColorStop(0, PICKUP_COLOR[kind] + 'cc');
+    g.addColorStop(1, PICKUP_COLOR[kind] + '00');
+    pickupGlowCache[kind] = g;
+  }
+  return pickupGlowCache[kind];
+}
+let skyGradient = null; // rebuilt only when the level changes, not every frame
+
 function seeded(seed) {
   let s = seed >>> 0;
   return function () {
@@ -212,6 +248,7 @@ function bossPos() { return { x: ARENA_R - 1.6, y: ARENA_R - 1.6 }; }
 
 function setupLevel(idx) {
   const L = LEVELS[idx];
+  skyGradient = null; // rebuild for this level's colors
   const lrng = seeded(idx * 7919 + 13); // stable decor per level
   enemies = []; projectiles = []; pickups = []; particles = [];
   bossSpawned = false; ambushDone = false;
@@ -933,6 +970,9 @@ function banner(text, ms) {
 }
 
 function floatText(wx, wy, text, color) {
+  const holder = document.getElementById('floaters');
+  // safety cap: never let more than ~30 float texts exist at once
+  while (holder.childElementCount > 30) holder.removeChild(holder.firstChild);
   const s = worldToScreen(wx, wy);
   const el = document.createElement('div');
   el.className = 'floater';
@@ -940,7 +980,7 @@ function floatText(wx, wy, text, color) {
   el.style.left = (s.x - 20) + 'px';
   el.style.top = (s.y - 30) + 'px';
   el.style.color = color;
-  document.getElementById('floaters').appendChild(el);
+  holder.appendChild(el);
   setTimeout(() => el.remove(), 900);
 }
 
@@ -989,27 +1029,26 @@ function render() {
     damageFlash -= 0.05;
   }
   // vignette
-  const grad = ctx.createRadialGradient(W/2, H/2, H*0.25, W/2, H/2, H*0.75);
-  grad.addColorStop(0, 'rgba(0,0,0,0)');
-  grad.addColorStop(1, 'rgba(0,0,0,0.55)');
-  ctx.fillStyle = grad;
+  ctx.fillStyle = VIGNETTE_GRADIENT;
   ctx.fillRect(0, 0, W, H);
 }
 
 function drawSky(L) {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, '#05040a');
-  g.addColorStop(0.55, L.fog);
-  g.addColorStop(1, L.ground2);
-  ctx.fillStyle = g;
+  if (!skyGradient) {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#05040a');
+    g.addColorStop(0.55, L.fog);
+    g.addColorStop(1, L.ground2);
+    skyGradient = g;
+  }
+  ctx.fillStyle = skyGradient;
   ctx.fillRect(0, 0, W, H);
-  // moon
-  ctx.save();
-  const moonColor = timeLeft <= 60 ? '#ff5b5b' : '#d8d0b0';
-  ctx.fillStyle = moonColor;
-  ctx.shadowColor = moonColor; ctx.shadowBlur = 30;
-  ctx.beginPath(); ctx.arc(W - 110, 80, 34, 0, Math.PI * 2); ctx.fill();
-  ctx.restore();
+  // moon glow (cached gradient, no shadowBlur — shadowBlur is expensive on iOS)
+  const blood = timeLeft <= 60;
+  ctx.fillStyle = blood ? MOON_GLOW_BLOOD : MOON_GLOW_NORMAL;
+  ctx.beginPath(); ctx.arc(MOON_X, MOON_Y, MOON_R * 2.1, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = blood ? '#ff5b5b' : '#d8d0b0';
+  ctx.beginPath(); ctx.arc(MOON_X, MOON_Y, MOON_R, 0, Math.PI * 2); ctx.fill();
 }
 
 function drawGround(L) {
@@ -1102,9 +1141,11 @@ function drawPickup(pk) {
   const s = worldToScreen(pk.x, pk.y);
   ctx.save();
   ctx.translate(s.x, s.y - 14 + bob);
-  ctx.shadowColor = PICKUP_COLOR[pk.kind]; ctx.shadowBlur = 12;
+  ctx.fillStyle = getPickupGlow(pk.kind);
+  ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill();
   ctx.font = '18px sans-serif';
   ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff';
   ctx.fillText(PICKUP_GLYPH[pk.kind] || '?', 0, 0);
   ctx.restore();
 }
