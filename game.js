@@ -26,6 +26,95 @@ function lerp(a, b, t) { return a + (b - a) * t; }
 function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; }
 
 // ---------------------------------------------------------------------------
+// SFX — tiny synthesized sound engine (Web Audio API, no audio files)
+// ---------------------------------------------------------------------------
+const SFX = (() => {
+  let actx = null;
+  let master = null;
+
+  function ensure() {
+    if (!actx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      actx = new AC();
+      master = actx.createGain();
+      master.gain.value = 0.55;
+      master.connect(actx.destination);
+    }
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+
+  // Call on the first user gesture (Start button, first touch) so mobile
+  // browsers' autoplay-blocking policies don't silently eat every sound.
+  function unlock() { ensure(); }
+
+  function tone({ freq = 440, type = 'sine', dur = 0.15, gain = 0.3, freqEnd = null, delay = 0, attack = 0.005 }) {
+    const c = ensure();
+    if (!c) return;
+    const t0 = c.currentTime + delay;
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+    if (freqEnd !== null) osc.frequency.exponentialRampToValueAtTime(Math.max(1, freqEnd), t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), t0 + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g); g.connect(master);
+    osc.start(t0); osc.stop(t0 + dur + 0.02);
+  }
+
+  function noiseBurst({ dur = 0.2, gain = 0.3, delay = 0, filterFreq = 1200, filterType = 'lowpass', filterEnd = null }) {
+    const c = ensure();
+    if (!c) return;
+    const t0 = c.currentTime + delay;
+    const bufferSize = Math.max(1, Math.floor(c.sampleRate * dur));
+    const buffer = c.createBuffer(1, bufferSize, c.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource();
+    src.buffer = buffer;
+    const filt = c.createBiquadFilter();
+    filt.type = filterType;
+    filt.frequency.setValueAtTime(filterFreq, t0);
+    if (filterEnd !== null) filt.frequency.exponentialRampToValueAtTime(Math.max(1, filterEnd), t0 + dur);
+    const g = c.createGain();
+    g.gain.setValueAtTime(gain, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(filt); filt.connect(g); g.connect(master);
+    src.start(t0); src.stop(t0 + dur + 0.02);
+  }
+
+  return {
+    unlock,
+    swing()        { tone({ freq: 340, freqEnd: 180, type: 'triangle', dur: 0.09, gain: 0.18 }); },
+    hit()          { noiseBurst({ dur: 0.08, gain: 0.22, filterFreq: 2200, filterType: 'bandpass' }); tone({ freq: 180, freqEnd: 90, type: 'square', dur: 0.07, gain: 0.12 }); },
+    crit()         { noiseBurst({ dur: 0.1, gain: 0.28, filterFreq: 3200, filterType: 'bandpass' }); tone({ freq: 520, freqEnd: 220, type: 'square', dur: 0.12, gain: 0.16 }); },
+    shoot()        { tone({ freq: 700, freqEnd: 260, type: 'sawtooth', dur: 0.12, gain: 0.14 }); },
+    bomb()         { noiseBurst({ dur: 0.35, gain: 0.4, filterFreq: 900, filterEnd: 80 }); tone({ freq: 90, freqEnd: 35, type: 'sine', dur: 0.35, gain: 0.3 }); },
+    dash()         { tone({ freq: 900, freqEnd: 1400, type: 'sine', dur: 0.14, gain: 0.12 }); },
+    interact()     { tone({ freq: 500, type: 'triangle', dur: 0.08, gain: 0.15 }); tone({ freq: 750, type: 'triangle', dur: 0.1, gain: 0.12, delay: 0.06 }); },
+    chest()        { tone({ freq: 400, type: 'triangle', dur: 0.12, gain: 0.15 }); tone({ freq: 600, type: 'triangle', dur: 0.12, gain: 0.14, delay: 0.08 }); tone({ freq: 900, type: 'triangle', dur: 0.18, gain: 0.14, delay: 0.16 }); },
+    pickupGold()   { tone({ freq: 1100, type: 'square', dur: 0.06, gain: 0.1 }); tone({ freq: 1500, type: 'square', dur: 0.08, gain: 0.09, delay: 0.05 }); },
+    pickupPotion() { tone({ freq: 500, freqEnd: 800, type: 'sine', dur: 0.18, gain: 0.16 }); },
+    pickupBomb()   { tone({ freq: 300, type: 'square', dur: 0.08, gain: 0.12 }); },
+    pickupUpgrade(){ tone({ freq: 440, type: 'triangle', dur: 0.1, gain: 0.14 }); tone({ freq: 660, type: 'triangle', dur: 0.1, gain: 0.13, delay: 0.08 }); tone({ freq: 880, type: 'triangle', dur: 0.16, gain: 0.14, delay: 0.16 }); },
+    weaponUp()     { tone({ freq: 300, type: 'sawtooth', dur: 0.1, gain: 0.14 }); tone({ freq: 500, type: 'sawtooth', dur: 0.14, gain: 0.14, delay: 0.09 }); },
+    hurt()         { noiseBurst({ dur: 0.15, gain: 0.25, filterFreq: 700 }); tone({ freq: 150, freqEnd: 60, type: 'sawtooth', dur: 0.16, gain: 0.18 }); },
+    enemyDeath()   { noiseBurst({ dur: 0.18, gain: 0.2, filterFreq: 1400, filterEnd: 200 }); },
+    bossAwaken()   { tone({ freq: 90, type: 'sawtooth', dur: 0.6, gain: 0.22 }); tone({ freq: 60, type: 'sawtooth', dur: 0.8, gain: 0.2, delay: 0.15 }); },
+    bossDeath()    { noiseBurst({ dur: 0.5, gain: 0.35, filterFreq: 1800, filterEnd: 100 }); tone({ freq: 200, freqEnd: 40, type: 'sawtooth', dur: 0.55, gain: 0.25 }); },
+    ambush()       { tone({ freq: 220, type: 'square', dur: 0.15, gain: 0.16 }); tone({ freq: 220, type: 'square', dur: 0.15, gain: 0.16, delay: 0.2 }); },
+    warning()      { tone({ freq: 440, type: 'square', dur: 0.12, gain: 0.14 }); tone({ freq: 440, type: 'square', dur: 0.12, gain: 0.14, delay: 0.18 }); },
+    portal()       { tone({ freq: 300, freqEnd: 900, type: 'sine', dur: 0.5, gain: 0.16 }); },
+    click()        { tone({ freq: 300, type: 'triangle', dur: 0.06, gain: 0.12 }); },
+    win()          { [523, 659, 784, 1047].forEach((f, i) => tone({ freq: f, type: 'triangle', dur: 0.35, gain: 0.18, delay: i * 0.16 })); },
+    lose()         { [300, 260, 220, 160].forEach((f, i) => tone({ freq: f, type: 'sawtooth', dur: 0.4, gain: 0.16, delay: i * 0.18 })); },
+  };
+})();
+
+// ---------------------------------------------------------------------------
 // DATA
 // ---------------------------------------------------------------------------
 
@@ -194,6 +283,7 @@ function spawnBoss(key) {
     state: 'chase', rangedCd: 1.5,
   });
   banner(`⚠ ${def.name.toUpperCase()} AWAKENS ⚠`, 3200);
+  SFX.bossAwaken();
 }
 
 // ---------------------------------------------------------------------------
@@ -214,12 +304,13 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 canvas.addEventListener('mousedown', () => { if (state === 'PLAYING') trySwing(); });
 
-document.getElementById('btn-start').onclick = () => beginRun();
-document.getElementById('btn-continue').onclick = () => enterLevel();
-document.getElementById('btn-resume').onclick = () => togglePause();
-document.getElementById('btn-restart').onclick = () => beginRun();
-document.getElementById('btn-restart2').onclick = () => beginRun();
+document.getElementById('btn-start').onclick = () => { SFX.unlock(); beginRun(); };
+document.getElementById('btn-continue').onclick = () => { SFX.click(); enterLevel(); };
+document.getElementById('btn-resume').onclick = () => { SFX.click(); togglePause(); };
+document.getElementById('btn-restart').onclick = () => { SFX.click(); beginRun(); };
+document.getElementById('btn-restart2').onclick = () => { SFX.click(); beginRun(); };
 document.getElementById('btn-pause-touch').onclick = () => togglePause();
+window.addEventListener('touchstart', () => SFX.unlock(), { once: true, passive: true });
 
 // ---------------------------------------------------------------------------
 // TOUCH SUPPORT — virtual joystick (movement) + on-screen action buttons
@@ -395,11 +486,13 @@ function trySwing() {
   if (player.swingCd > 0 || player.swinging) return;
   player.swinging = true; player.swingT = 0; player.swingHitDone = false;
   player.swingCd = WEAPONS[player.weaponTier].cd * player.cdMult;
+  SFX.swing();
 }
 
 function tryShoot() {
   if (!player.hasBow || player.bowCd > 0) return;
   player.bowCd = 0.42 * player.cdMult;
+  SFX.shoot();
   const n = player.arrowCount || 1;
   const spread = 0.22;
   for (let i = 0; i < n; i++) {
@@ -414,6 +507,7 @@ function tryShoot() {
 function tryBomb() {
   if (player.bombs <= 0) return;
   player.bombs--;
+  SFX.bomb();
   const bx = player.x + Math.cos(player.facing) * 1.7;
   const by = player.y + Math.sin(player.facing) * 1.7;
   particles.push({ x: bx, y: by, r: 0.15, maxR: 1.8, life: 0.4, t: 0, kind: 'boom' });
@@ -430,11 +524,13 @@ function tryDash() {
   player.dashCd = 2.4;
   player.dashT = 0.16;
   player.invuln = Math.max(player.invuln, 0.25);
+  SFX.dash();
 }
 
 function tryInteract() {
   if (chest && !chest.open && dist(player, chest) < 1.3) {
     chest.open = true;
+    SFX.chest();
     floatText(chest.x, chest.y, 'TREASURE!', '#ffd76a');
     grantUpgrade();
     player.hp = Math.min(player.maxHp, player.hp + 30);
@@ -449,10 +545,12 @@ function grantUpgrade() {
   player.upgrades[u.key] = (player.upgrades[u.key] || 0) + 1;
   floatText(player.x, player.y - 0.6, u.name.toUpperCase() + '!', '#ffd76a');
   banner(`✦ UPGRADE: ${u.name.toUpperCase()} ✦`, 1800);
+  SFX.pickupUpgrade();
 }
 
 function dealDamageToEnemy(e, dmg, crit) {
   e.hp -= dmg; e.hitFlash = 0.15;
+  crit ? SFX.crit() : SFX.hit();
   floatText(e.x, e.y - 0.5, (crit ? 'CRIT ' : '') + Math.round(dmg), crit ? '#ff9d00' : '#ffffff');
   if (e.hp <= 0 && !e.dead) {
     e.dead = true;
@@ -461,6 +559,7 @@ function dealDamageToEnemy(e, dmg, crit) {
 }
 
 function onEnemyKilled(e) {
+  e.boss ? SFX.bossDeath() : SFX.enemyDeath();
   kills++;
   gold += e.boss ? 60 : (3 + Math.floor(rng() * 5));
   const drop = rng();
@@ -594,23 +693,28 @@ function updatePlayer(dt) {
 
 function applyPickup(pk) {
   if (pk.kind === 'potion') {
+    SFX.pickupPotion();
     player.hp = Math.min(player.maxHp, player.hp + 32);
     floatText(pk.x, pk.y, '+32 HP', '#5fd35f');
   } else if (pk.kind === 'upgrade') {
     grantUpgrade();
   } else if (pk.kind === 'bomb') {
+    SFX.pickupBomb();
     player.bombs = Math.min(5, player.bombs + 1);
     floatText(pk.x, pk.y, '+1 BOMB', '#ffb347');
   } else if (pk.kind === 'weapon') {
     if (rng() < 0.25 && !player.hasBow) {
       player.hasBow = true;
+      SFX.weaponUp();
       floatText(pk.x, pk.y, 'LONGBOW!', '#c9a86a');
       banner('✦ YOU FOUND A LONGBOW ✦', 2200);
     } else if (player.weaponTier < WEAPONS.length - 1) {
       player.weaponTier++;
+      SFX.weaponUp();
       floatText(pk.x, pk.y, WEAPONS[player.weaponTier].name.toUpperCase() + '!', '#c9a86a');
       banner(`✦ EQUIPPED: ${WEAPONS[player.weaponTier].name.toUpperCase()} ✦`, 2200);
     } else {
+      SFX.pickupGold();
       gold += 20;
       floatText(pk.x, pk.y, '+20 GOLD', '#ffd76a');
     }
@@ -633,6 +737,7 @@ function updateEnemies(dt) {
     if (e.boss && !e.phase2 && e.hp < e.maxHp * 0.5) {
       e.phase2 = true;
       banner(`⚠ ${e.def.name.toUpperCase()} ENRAGES ⚠`, 2200);
+      SFX.warning();
     }
     const spdMult = e.phase2 ? 1.3 : 1;
     const atkMult = e.phase2 ? 0.7 : 1;
@@ -730,6 +835,7 @@ function updateEvents(dt) {
   if (!ambushDone && elapsed > 8 && enemies.some(e => !e.dead && !e.boss) && rng() < 0.006) {
     ambushDone = true;
     banner('⚠ AMBUSH! ⚠', 2000);
+    SFX.ambush();
     const L = LEVELS[levelIdx];
     for (let i = 0; i < 3; i++) {
       const a = rng() * Math.PI * 2;
@@ -741,10 +847,12 @@ function updateEvents(dt) {
   if (!bloodMoonWarned && timeLeft <= 60) {
     bloodMoonWarned = true;
     banner('🔴 THE BLOOD MOON RISES — 60 SECONDS 🔴', 3500);
+    SFX.warning();
   }
 }
 
 function nextLevelOrWin() {
+  SFX.portal();
   if (levelIdx >= LEVELS.length - 1) {
     triggerWin();
   } else {
@@ -756,6 +864,7 @@ function nextLevelOrWin() {
 
 function triggerLoss(reason) {
   state = 'OVER';
+  SFX.lose();
   const title = document.getElementById('over-title');
   const text = document.getElementById('over-text');
   if (reason === 'time') {
@@ -773,6 +882,7 @@ function triggerLoss(reason) {
 
 function triggerWin() {
   state = 'WIN';
+  SFX.win();
   const mins = Math.floor(timeLeft / 60), secs = Math.floor(timeLeft % 60);
   document.getElementById('win-text').innerHTML =
     'The Dragon King falls in a heap of ash and ember.<br>The chains shatter. Princess Seraphine is free.<br>Sir Alaric carries her out as the Blood Moon fades back to silver.<br><b>The Kingdom of Elarion is saved.</b>';
@@ -835,7 +945,7 @@ function floatText(wx, wy, text, color) {
 }
 
 let damageFlash = 0;
-function flashDamage() { damageFlash = 0.3; }
+function flashDamage() { damageFlash = 0.3; SFX.hurt(); }
 
 // ---------------------------------------------------------------------------
 // RENDER
