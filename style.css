@@ -22,6 +22,24 @@ html, body {
   overflow: hidden;
 }
 
+/* ---------- FORCE LANDSCAPE ----------
+   On touch devices held in portrait, rotate the whole game 90° so it
+   always renders as landscape regardless of how the phone is held.
+   Driven purely by the CSS orientation media query (not JS reading
+   window dimensions), which is instant and doesn't suffer the iOS
+   orientationchange timing bugs. */
+@media screen and (orientation: portrait) {
+  body.touch-device #game-outer {
+    position: fixed;
+    top: 0;
+    left: 100%;
+    width: 100vh;
+    height: 100vw;
+    transform-origin: 0 0;
+    transform: rotate(90deg);
+  }
+}
+
 #game-wrap {
   position: relative;
   width: 960px;
@@ -310,34 +328,5 @@ canvas#game {
   display: none;
 }
 .pause-touch-btn.show { display: block; }
-
-/* ---------- ROTATE HINT ---------- */
-#rotate-hint {
-  position: fixed;
-  inset: 0;
-  z-index: 999;
-  background: rgba(4,3,8,0.97);
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
-#rotate-hint.show { display: flex; }
-#rotate-hint.hidden { display: none; }
-.rotate-inner {
-  font-family: 'Press Start 2P', monospace;
-  color: #ffd76a;
-  font-size: 14px;
-  line-height: 2;
-  padding: 30px;
-}
-.rotate-icon {
-  font-size: 46px;
-  margin-bottom: 18px;
-  animation: rotateSpin 1.6s ease-in-out infinite;
-}
-@keyframes rotateSpin {
-  0%, 100% { transform: rotate(0deg); }
-  50% { transform: rotate(-90deg); }
-}
 
 

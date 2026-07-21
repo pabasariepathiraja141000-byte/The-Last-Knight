@@ -230,12 +230,28 @@ let touchMove = { x: 0, y: 0 };
 let gameScale = 1;
 
 if (isTouchDevice) {
+  document.body.classList.add('touch-device');
   document.getElementById('touch-controls').classList.add('show');
   document.getElementById('btn-pause-touch').classList.add('show');
 }
 
+// True while the CSS force-landscape rotation (see style.css) is active —
+// i.e. a touch device currently held in portrait.
+function isForceRotated() {
+  return isTouchDevice && window.matchMedia('(orientation: portrait)').matches;
+}
+
 function toLocal(clientX, clientY) {
   const rect = document.getElementById('game-wrap').getBoundingClientRect();
+  if (isForceRotated()) {
+    // #game-wrap is inside a 90°-rotated ancestor, so the screen's X/Y
+    // axes are swapped (and one flipped) relative to the wrap's own
+    // width/height axes. Correct for that here.
+    return {
+      x: (clientY - rect.top) * (W / rect.height),
+      y: (rect.width - (clientX - rect.left)) * (H / rect.width)
+    };
+  }
   return { x: (clientX - rect.left) * (W / rect.width), y: (clientY - rect.top) * (H / rect.height) };
 }
 
@@ -300,26 +316,16 @@ bindTouchButton('tb-interact', tryInteract);
 
 function fitGame() {
   const pad = isTouchDevice ? 4 : 16;
-  const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const rotated = isForceRotated();
+  // When force-rotated, #game-outer's own box is 100vh wide / 100vw tall
+  // (see style.css), so the space available to game-wrap is swapped too.
+  const vw = rotated ? window.innerHeight : (window.visualViewport ? window.visualViewport.width : window.innerWidth);
+  const vh = rotated ? window.innerWidth : (window.visualViewport ? window.visualViewport.height : window.innerHeight);
   const availW = vw - pad * 2;
   const availH = vh - pad * 2;
   const maxScale = isTouchDevice ? 2.4 : 1.4;
   gameScale = Math.min(availW / W, availH / H, maxScale);
   document.getElementById('game-wrap').style.transform = `scale(${gameScale})`;
-  checkOrientation();
-}
-
-function checkOrientation() {
-  const hint = document.getElementById('rotate-hint');
-  const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-  const portrait = vh > vw;
-  const shouldShow = isTouchDevice && portrait;
-  const wasShown = hint.classList.contains('show');
-  hint.classList.toggle('show', shouldShow);
-  hint.classList.toggle('hidden', !shouldShow);
-  if (shouldShow && !wasShown && state === 'PLAYING') togglePause();
 }
 window.addEventListener('resize', fitGame);
 // iOS Safari fires 'orientationchange' before window.innerWidth/innerHeight
@@ -332,11 +338,11 @@ window.addEventListener('orientationchange', () => {
   setTimeout(fitGame, 400);
 });
 if (window.visualViewport) window.visualViewport.addEventListener('resize', fitGame);
-// matchMedia reflects the CSS orientation immediately and doesn't suffer
-// from the same stale-dimension timing issue, so use it as a backup trigger.
+// matchMedia reflects the CSS orientation immediately, so use it to
+// re-fit whenever the force-rotate rule kicks in or out.
 if (window.matchMedia) {
   const orientationQuery = window.matchMedia('(orientation: portrait)');
-  const onOrientationQueryChange = () => setTimeout(fitGame, 50);
+  const onOrientationQueryChange = () => { fitGame(); setTimeout(fitGame, 50); };
   if (orientationQuery.addEventListener) {
     orientationQuery.addEventListener('change', onOrientationQueryChange);
   } else if (orientationQuery.addListener) {
