@@ -2,11 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Blood Moon: The Last Knight</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<div id="rotate-hint" class="hidden">
+  <div class="rotate-inner">
+    <div class="rotate-icon">↻</div>
+    Rotate your device sideways<br>for a bigger battlefield
+  </div>
+</div>
 
 <div id="game-outer">
 <div id="game-wrap">
@@ -60,10 +67,14 @@
         </div>
       </div>
       <div id="touch-buttons">
-        <button id="tb-interact" class="tbtn small" data-action="interact">E</button>
-        <button id="tb-dash" class="tbtn small" data-action="dash">DASH</button>
-        <button id="tb-bomb" class="tbtn med" data-action="bomb">💣</button>
-        <button id="tb-shoot" class="tbtn med" data-action="shoot">🏹</button>
+        <div class="trow">
+          <button id="tb-interact" class="tbtn small" data-action="interact">E</button>
+          <button id="tb-dash" class="tbtn small" data-action="dash">DASH</button>
+        </div>
+        <div class="trow">
+          <button id="tb-bomb" class="tbtn med" data-action="bomb">💣</button>
+          <button id="tb-shoot" class="tbtn med" data-action="shoot">🏹</button>
+        </div>
         <button id="tb-swing" class="tbtn big" data-action="swing">⚔</button>
       </div>
     </div>

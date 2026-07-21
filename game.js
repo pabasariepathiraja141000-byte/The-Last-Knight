@@ -243,7 +243,7 @@ function toLocal(clientX, clientY) {
   const zone = document.getElementById('joystick-zone');
   const base = document.getElementById('joystick-base');
   const knob = document.getElementById('joystick-knob');
-  const MAXR = 44;
+  const BASE_HALF = 75, KNOB_HALF = 33, MAXR = 40;
   let touchId = null, baseX = 0, baseY = 0;
 
   zone.addEventListener('touchstart', e => {
@@ -253,10 +253,10 @@ function toLocal(clientX, clientY) {
     touchId = t.identifier;
     const p = toLocal(t.clientX, t.clientY);
     baseX = p.x; baseY = p.y;
-    base.style.left = (baseX - 60) + 'px';
-    base.style.top = (baseY - 60) + 'px';
+    base.style.left = (baseX - BASE_HALF) + 'px';
+    base.style.top = (baseY - BASE_HALF) + 'px';
     base.classList.add('active');
-    knob.style.left = '34px'; knob.style.top = '34px';
+    knob.style.left = BASE_HALF - KNOB_HALF + 'px'; knob.style.top = BASE_HALF - KNOB_HALF + 'px';
   }, { passive: false });
 
   zone.addEventListener('touchmove', e => {
@@ -267,8 +267,8 @@ function toLocal(clientX, clientY) {
       let dx = p.x - baseX, dy = p.y - baseY;
       const d = Math.hypot(dx, dy);
       if (d > MAXR) { dx = dx / d * MAXR; dy = dy / d * MAXR; }
-      knob.style.left = (34 + dx) + 'px';
-      knob.style.top = (34 + dy) + 'px';
+      knob.style.left = (BASE_HALF - KNOB_HALF + dx) + 'px';
+      knob.style.top = (BASE_HALF - KNOB_HALF + dy) + 'px';
       touchMove.x = dx / MAXR; touchMove.y = dy / MAXR;
     }
   }, { passive: false });
@@ -299,14 +299,31 @@ bindTouchButton('tb-dash', tryDash);
 bindTouchButton('tb-interact', tryInteract);
 
 function fitGame() {
-  const pad = 16;
-  const availW = window.innerWidth - pad * 2;
-  const availH = window.innerHeight - pad * 2;
-  gameScale = Math.min(availW / W, availH / H, 1.4);
+  const pad = isTouchDevice ? 4 : 16;
+  const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const availW = vw - pad * 2;
+  const availH = vh - pad * 2;
+  const maxScale = isTouchDevice ? 2.4 : 1.4;
+  gameScale = Math.min(availW / W, availH / H, maxScale);
   document.getElementById('game-wrap').style.transform = `scale(${gameScale})`;
+  checkOrientation();
+}
+
+function checkOrientation() {
+  const hint = document.getElementById('rotate-hint');
+  const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const portrait = vh > vw;
+  const shouldShow = isTouchDevice && portrait;
+  const wasShown = hint.classList.contains('show');
+  hint.classList.toggle('show', shouldShow);
+  hint.classList.toggle('hidden', !shouldShow);
+  if (shouldShow && !wasShown && state === 'PLAYING') togglePause();
 }
 window.addEventListener('resize', fitGame);
 window.addEventListener('orientationchange', fitGame);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', fitGame);
 fitGame();
 
 function beginRun() {
