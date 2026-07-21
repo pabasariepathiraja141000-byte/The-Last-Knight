@@ -322,8 +322,27 @@ function checkOrientation() {
   if (shouldShow && !wasShown && state === 'PLAYING') togglePause();
 }
 window.addEventListener('resize', fitGame);
-window.addEventListener('orientationchange', fitGame);
+// iOS Safari fires 'orientationchange' before window.innerWidth/innerHeight
+// (and visualViewport) have updated to the new orientation, so reading them
+// synchronously here can see stale pre-rotation values. Delay the check
+// until the layout has actually settled.
+window.addEventListener('orientationchange', () => {
+  fitGame();
+  setTimeout(fitGame, 100);
+  setTimeout(fitGame, 400);
+});
 if (window.visualViewport) window.visualViewport.addEventListener('resize', fitGame);
+// matchMedia reflects the CSS orientation immediately and doesn't suffer
+// from the same stale-dimension timing issue, so use it as a backup trigger.
+if (window.matchMedia) {
+  const orientationQuery = window.matchMedia('(orientation: portrait)');
+  const onOrientationQueryChange = () => setTimeout(fitGame, 50);
+  if (orientationQuery.addEventListener) {
+    orientationQuery.addEventListener('change', onOrientationQueryChange);
+  } else if (orientationQuery.addListener) {
+    orientationQuery.addListener(onOrientationQueryChange); // older Safari
+  }
+}
 fitGame();
 
 function beginRun() {
