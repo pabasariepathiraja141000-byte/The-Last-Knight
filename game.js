@@ -98,6 +98,11 @@ const SFX = (() => {
     g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), t0 + attack);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     osc.connect(g); g.connect(master);
+    // Safari/WebKit is known not to promptly garbage-collect finished
+    // oscillator/gain nodes unless they're explicitly disconnected — with
+    // this many SFX firing during combat that leak grows until the tab
+    // crashes. Disconnecting on 'ended' fixes it.
+    osc.onended = () => { osc.disconnect(); g.disconnect(); };
     osc.start(t0); osc.stop(t0 + dur + 0.02);
   }
 
@@ -119,6 +124,8 @@ const SFX = (() => {
     g.gain.setValueAtTime(gain, t0);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     src.connect(filt); filt.connect(g); g.connect(master);
+    // See note in tone() — same Safari node-retention issue applies here.
+    src.onended = () => { src.disconnect(); filt.disconnect(); g.disconnect(); };
     src.start(t0); src.stop(t0 + dur + 0.02);
   }
 
